@@ -13,7 +13,7 @@ extension UIAlertAction {
         return UIAlertAction(title: "Ок", style: .default, handler: nil)
     }
 
-    static func ok(handler: ((UIAlertAction) -> Void)? = nil) -> UIAlertAction {
+    static func agian(handler: ((UIAlertAction) -> Void)? = nil) -> UIAlertAction {
         return UIAlertAction(title: "Повторить", style: .default, handler: handler)
     }
 
