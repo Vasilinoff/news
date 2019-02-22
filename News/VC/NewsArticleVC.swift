@@ -8,7 +8,7 @@
 import UIKit
 import Foundation
 
-typealias NewsId = String
+typealias Slug = String
 
 class NewsArticleVC: UIViewController, UITextViewDelegate {
     private let scrollView = UIScrollView()
@@ -36,9 +36,14 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
         return textView
     }()
 
-    let newsId: NewsId
+    let nManager = NetworkManager<NewsApi>()
+    let sManager = DataService()
 
-    init(newsId: NewsId) {
+    let slug: Slug
+    let newsId: String
+
+    init(slug: Slug, newsId: String) {
+        self.slug = slug
         self.newsId = newsId
         super.init(nibName: nil, bundle: nil)
     }
@@ -51,27 +56,28 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
         super.viewDidLoad()
 
         setupViews()
+
+        do {
+            let newsItem = try sManager.getNewsItem(id: newsId)
+            set(item: newsItem)
+        } catch {
+            print("no data")
+        }
         loadData()
 
     }
 
-    deinit {
-        print("check")
-    }
-
     private func loadData() {
-        NetworkManager.shared.request(NewsArticleResponse.self,requestType: .article(newsId: newsId)) { (item, error) in
+        nManager.request(NewsArticleResponse.self, requestType: .article(newsId: slug)) { (item, error) in
             if error != nil {
-                DispatchQueue.main.async {
-                    self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
-                            self.loadData()
-                        }, .no)
-                }
+                self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
+                    self.loadData()
+                    }, .no)
                 return
             }
-            DispatchQueue.main.async {
-                self.set(item: item?.response)
-            }
+            guard let newsItem = item?.response else { return }
+            self.sManager.saveNewsItem(newsItem)
+            self.set(item: newsItem)
         }
     }
 
@@ -102,7 +108,7 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
         guard let item = item else { return }
         titleLabel.text = item.title
         dateLabel.text = item.date
-        textView.attributedText = convertHTMLStringToAttributed(string: item.text)
+        textView.attributedText = convertHTMLStringToAttributed(string: item.text )
     }
 
     func convertHTMLStringToAttributed(string: String) -> NSAttributedString? {

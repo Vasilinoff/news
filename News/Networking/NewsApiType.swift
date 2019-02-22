@@ -8,22 +8,15 @@
 
 import Foundation
 
-
-enum NetworkEnvironment {
-    case dev
-}
-
 enum NewsApi {
-    case articles
-    case article(newsId: NewsId)
+    case articles(offset: Int)
+    case article(newsId: Slug)
 }
 
 extension NewsApi: ConfigurationType {
 
     var environmentBaseURL : String {
-        switch NetworkManager.environment {
-        case .dev: return "https://cfg.tinkoff.ru/news/public/api/platform/v1/"
-        }
+        return "https://cfg.tinkoff.ru/news/public/api/platform/v1/"
     }
 
     var baseURL: URL {
@@ -47,10 +40,10 @@ extension NewsApi: ConfigurationType {
 
     var task: Task {
         switch self {
-        case .articles:
+        case .articles(let offset):
             return .requestParameters(bodyParameters: nil, urlParameters: [
                 "pageSize": 10,
-                "pageOffset": 40
+                "pageOffset": offset
                 ])
         case .article(let newsId):
             return .requestParameters(bodyParameters: nil, urlParameters: ["urlSlug": newsId])

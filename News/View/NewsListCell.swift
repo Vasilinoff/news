@@ -62,14 +62,11 @@ class NewsListCell: UITableViewCell {
         titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         NSLayoutConstraint.activate(constraints)
-
-
     }
 
     func set(item: NewsListItem) {
         titleLabel.text = item.title
         dateLabel.text = item.date
-
-        countLabel.text = "12 раз"
+        countLabel.text = ""
     }
 }

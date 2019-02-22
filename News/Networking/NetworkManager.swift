@@ -5,14 +5,11 @@
 //  Created by Ponomarev Vasiliy on 16/02/2019.
 //  Copyright © 2019 vasilek. All rights reserved.
 //
-
+import CoreData
 import Foundation
 
-struct NetworkManager {
-    typealias API = NewsApi
+class NetworkManager<API: ConfigurationType> {
 
-    static let environment: NetworkEnvironment = .dev
-    static let shared = NetworkManager()
     private let router = Router<API>()
 
     enum Result<String> {
@@ -42,10 +39,16 @@ struct NetworkManager {
         }
     }
 
-    func request<MapType: Decodable>(_ dump: MapType.Type, requestType: API, completion: @escaping ((_ mapType: MapType?, _ error: String?) -> ()) ) {
-        router.request(requestType) { (data, response, error) in
+    func request<MapType: Decodable>(_ dump: MapType.Type,
+                                     requestType: API,
+                                     completion: @escaping ((_ mapType: MapType?, _ error: String?) -> ()) ) {
+        
+        router.request(requestType) { [weak self] (data, response, error) in
+            guard let self = self else { return }
             if error != nil {
-                completion(nil, "Check connection")
+                DispatchQueue.main.async {
+                    completion(nil, "Check connection")
+                }
             }
 
             if let response = response as? HTTPURLResponse {
@@ -54,18 +57,26 @@ struct NetworkManager {
                 switch result {
                 case .success:
                     guard let responseData = data else {
-                        completion(nil, NetworkResponse.noData.rawValue)
+                        DispatchQueue.main.async {
+                            completion(nil, NetworkResponse.noData.rawValue)
+                        }
                         return
                     }
                     do {
                         let apiResponse = try JSONDecoder().decode(MapType.self, from: responseData)
-                        completion(apiResponse, nil)
-                    } catch {
-                        completion(nil, NetworkResponse.unableToDecode.rawValue)
-                    }
 
+                        DispatchQueue.main.async {
+                            completion(apiResponse, nil)
+                        }
+                    } catch {
+                        DispatchQueue.main.async {
+                            completion(nil, NetworkResponse.unableToDecode.rawValue)
+                        }
+                    }
                 case .failure(let networkFailure):
-                    completion(nil, networkFailure)
+                    DispatchQueue.main.async {
+                        completion(nil, networkFailure)
+                    }
                 }
             }
 

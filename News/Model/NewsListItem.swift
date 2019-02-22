@@ -7,6 +7,7 @@
 //
 import UIKit
 import Foundation
+import CoreData
 
 struct NewsListResponse: Decodable {
     let response: Response
@@ -38,20 +39,24 @@ struct Response: Decodable {
     }
 }
 
-
-struct NewsListItem {
+struct NewsListItem: Decodable {
     let id: String
     let title: String
     let date: String
     let slug: String
-}
 
-extension NewsListItem: Decodable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
         case date
         case slug
+    }
+
+    init(id: String, title: String, date: String, slug: String) {
+        self.id = id
+        self.title = title
+        self.date = date
+        self.slug = slug
     }
 
     init(from decoder: Decoder) throws {

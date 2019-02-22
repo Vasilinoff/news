@@ -5,10 +5,14 @@
 //  Created by Ponomarev Vasiliy on 16/02/2019.
 //  Copyright © 2019 vasilek. All rights reserved.
 //
-
+import CoreData
 import UIKit
 
 class NewsListVC: UIViewController {
+
+    let nManager = NetworkManager<NewsApi>()
+    let sManager = DataService()
+
     private lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .plain)
         tableView.separatorStyle = .singleLine
@@ -28,30 +32,46 @@ class NewsListVC: UIViewController {
         }
         return tableView
     }()
-
+    private var loadingInProgress = false
     private var news = [NewsListItem]()
+
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        title = "Новости"
+
         setupView()
-        loadData()
+
+        do {
+            self.news = try sManager.getNewsListItem()
+        } catch {
+            self.news = []
+        }
+        loadData(offset: 0)
     }
 
-    func loadData() {
-        NetworkManager.shared.request(NewsListResponse.self,requestType: .articles) { (item, error) in
+    func loadData(offset: Int) {
+        let offset = self.news.count
+        loadingInProgress = true
+
+        nManager.request(NewsListResponse.self, requestType: .articles(offset: offset)) { (item, error) in
+            self.loadingInProgress = false
             if error != nil {
-                DispatchQueue.main.async {
-                    self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
-                        self.loadData()
-                        }, .no)
-                }
+                self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
+                    self.loadData(offset: offset)
+                    }, .no)
                 return
             }
-            self.news = item?.response.news ?? []
-            DispatchQueue.main.async {
-                self.tableView.reloadData()
+            if offset == 0 {
+                self.sManager.deleteAllNews()
             }
+            item?.response.news.forEach({ item in
+                self.sManager.saveNewsListItem(item)
+            })
+            self.news += item?.response.news ?? []
+            self.tableView.reloadData()
         }
     }
 
@@ -70,9 +90,10 @@ extension NewsListVC: UITableViewDataSource, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let newsId = news[indexPath.row].slug
-        let newsArticleVC = NewsArticleVC(newsId: newsId)
-        navigationController?.pushViewController(newsArticleVC, animated: true)
+        let slug = news[indexPath.row].slug
+        let newsId = news[indexPath.row].id
+        let newsArticleVC = NewsArticleVC(slug: slug, newsId: newsId)
+            navigationController?.pushViewController(newsArticleVC, animated: true)
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -83,5 +104,24 @@ extension NewsListVC: UITableViewDataSource, UITableViewDelegate {
         cell.set(item: item)
         cell.selectionStyle = .none
         return cell
+    }
+}
+
+extension NewsListVC: UIScrollViewDelegate {
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if scrollView.contentSize.height < scrollView.frame.size.height {
+            return
+        }
+
+        let currentOffset  = scrollView.contentOffset.y
+        let maiximumOffset = scrollView.contentSize.height - scrollView.frame.size.height
+        let deltaOffset    = maiximumOffset - currentOffset
+
+        if deltaOffset <= 150 {
+            guard !loadingInProgress else { return }
+            let offset = news.count
+            self.loadData(offset: offset)
+        }
     }
 }
