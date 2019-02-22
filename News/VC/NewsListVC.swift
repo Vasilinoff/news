@@ -10,8 +10,8 @@ import UIKit
 
 class NewsListVC: UIViewController {
 
-    let nManager = NetworkManager<NewsApi>()
-    let sManager = DataService()
+    private let networkManager = NetworkManager<NewsApi>()
+    private let dataService = DataService(modelName: "News")
 
     private lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .plain)
@@ -35,8 +35,6 @@ class NewsListVC: UIViewController {
     private var loadingInProgress = false
     private var news = [NewsListItem]()
 
-    
-
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -45,18 +43,19 @@ class NewsListVC: UIViewController {
         setupView()
 
         do {
-            self.news = try sManager.getNewsListItem()
+            self.news = try dataService.getNewsListItem()
         } catch {
             self.news = []
         }
         loadData(offset: 0)
     }
 
-    func loadData(offset: Int) {
+    private func loadData(offset: Int) {
         let offset = self.news.count
         loadingInProgress = true
 
-        nManager.request(NewsListResponse.self, requestType: .articles(offset: offset)) { (item, error) in
+        networkManager.request(NewsListResponse.self, requestType: .articles(offset: offset)) { [weak self] (item, error) in
+            guard let self = self else { return }
             self.loadingInProgress = false
             if error != nil {
                 self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
@@ -65,17 +64,17 @@ class NewsListVC: UIViewController {
                 return
             }
             if offset == 0 {
-                self.sManager.deleteAllNews()
+                self.dataService.deleteAllNews()
             }
             item?.response.news.forEach({ item in
-                self.sManager.saveNewsListItem(item)
+                self.dataService.saveNewsListItem(item)
             })
             self.news += item?.response.news ?? []
             self.tableView.reloadData()
         }
     }
 
-    func setupView() {
+    private func setupView() {
         view.backgroundColor = .white
         view.layoutMargins = UIEdgeInsets(top: 15, left: 0, bottom: 15, right: 0)
         view.addSubview(tableView)
@@ -92,7 +91,10 @@ extension NewsListVC: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let slug = news[indexPath.row].slug
         let newsId = news[indexPath.row].id
-        let newsArticleVC = NewsArticleVC(slug: slug, newsId: newsId)
+        let newsArticleVC = NewsArticleVC(networkManager: networkManager,
+                                          dataService: dataService,
+                                          slug: slug,
+                                          newsId: newsId)
             navigationController?.pushViewController(newsArticleVC, animated: true)
     }
 
@@ -118,7 +120,7 @@ extension NewsListVC: UIScrollViewDelegate {
         let maiximumOffset = scrollView.contentSize.height - scrollView.frame.size.height
         let deltaOffset    = maiximumOffset - currentOffset
 
-        if deltaOffset <= 150 {
+        if deltaOffset <= 100 {
             guard !loadingInProgress else { return }
             let offset = news.count
             self.loadData(offset: offset)

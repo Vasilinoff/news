@@ -36,13 +36,15 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
         return textView
     }()
 
-    let nManager = NetworkManager<NewsApi>()
-    let sManager = DataService()
+    let networkManager: NetworkManager<NewsApi>
+    let dataService: DataService
 
     let slug: Slug
     let newsId: String
 
-    init(slug: Slug, newsId: String) {
+    init(networkManager: NetworkManager<NewsApi>, dataService: DataService, slug: Slug, newsId: String) {
+        self.networkManager = networkManager
+        self.dataService = dataService
         self.slug = slug
         self.newsId = newsId
         super.init(nibName: nil, bundle: nil)
@@ -57,18 +59,19 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
 
         setupViews()
 
+        var newsItem: NewsItem?
         do {
-            let newsItem = try sManager.getNewsItem(id: newsId)
+            newsItem = try dataService.getNewsItem(id: newsId)
             set(item: newsItem)
         } catch {
-            print("no data")
+            print("failed")
         }
+        guard newsItem == nil else { return }
         loadData()
-
     }
 
     private func loadData() {
-        nManager.request(NewsArticleResponse.self, requestType: .article(newsId: slug)) { (item, error) in
+        networkManager.request(NewsArticleResponse.self, requestType: .article(newsId: slug)) { (item, error) in
             if error != nil {
                 self.showAlert(title: "Упс", message: "Проверьте интернет соединение", items: .agian { _ in
                     self.loadData()
@@ -76,7 +79,7 @@ class NewsArticleVC: UIViewController, UITextViewDelegate {
                 return
             }
             guard let newsItem = item?.response else { return }
-            self.sManager.saveNewsItem(newsItem)
+            self.dataService.saveNewsItem(newsItem)
             self.set(item: newsItem)
         }
     }

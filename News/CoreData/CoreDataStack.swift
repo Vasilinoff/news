@@ -13,17 +13,18 @@ class CoreDataStack {
     private var  storeURL: URL {
         get {
             let documentsDirURL: URL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let url = documentsDirURL.appendingPathComponent("Store3.sqlite")
+            let url = documentsDirURL.appendingPathComponent("Store5.sqlite")
 
             return url
         }
     }
 
-    static let sharedCoreDataStack = CoreDataStack()
+    init(modelName: String) {
+        self.managedObjectModelName = modelName
+    }
 
-    fileprivate init() {}
-
-    private let managedObjectModelName = "News"
+    private let managedObjectModelName: String
+    
     private var _managedObjectModel: NSManagedObjectModel?
     private var managedObjectModel: NSManagedObjectModel? {
         get {
