@@ -32,6 +32,8 @@ class NewsListVC: UIViewController {
         }
         return tableView
     }()
+
+    private var isFirstLoad = true
     private var loadingInProgress = false
     private var news = [NewsListItem]()
 
@@ -63,7 +65,9 @@ class NewsListVC: UIViewController {
                     }, .no)
                 return
             }
-            if offset == 0 {
+            if self.isFirstLoad {
+                self.isFirstLoad = false
+                self.news = []
                 self.dataService.deleteAllNews()
             }
             item?.response.news.forEach({ item in
@@ -120,7 +124,7 @@ extension NewsListVC: UIScrollViewDelegate {
         let maiximumOffset = scrollView.contentSize.height - scrollView.frame.size.height
         let deltaOffset    = maiximumOffset - currentOffset
 
-        if deltaOffset <= 100 {
+        if deltaOffset <= 0 {
             guard !loadingInProgress else { return }
             let offset = news.count
             self.loadData(offset: offset)
